@@ -10,10 +10,10 @@ abstract class Adapter {
   Adapter(this.serializer);
 
   Future<Object> find(String endpoint, String id,
-      {bool forceReload = false, Map<String, String> queryParams});
+      {Map<String, String> queryParams});
 
   Future<Iterable<Object>> findManyById(String endpoint, Iterable<String> ids,
-      {bool forceReload = false, Map<String, String> queryParams});
+      {Map<String, String> queryParams});
 
   Future<Iterable<Object>> findAll(String endpoint,
       {Map<String, String> queryParams});
@@ -22,34 +22,17 @@ abstract class Adapter {
       String endpoint, String id, String relationshipName);
 
   Future<Iterable<Object>> filter(
-      String endpoint, String filterField, Iterable<String> values,
-      {bool forceReload = false});
-
-  Future<Iterable<Object>> query(String endpoint, Map<String, String> params);
+      String endpoint, String filterField, Iterable<String> values);
 
   Future<Object> save(String endpoint, Object document);
 
   Future<Object> replaceRelationship(String endpoint, String relationshipName,
-      Object document, Object relatedDocument);
+      String id, Object relatedDocument);
 
-  Future<void> delete(String endpoint, Object document);
+  Future delete(String endpoint, Object document);
 
   Future<Object> memberPutAction(
       String endpoint, Object document, String actionPath);
-
-  void cache(String endpoint, Object document);
-
-  void unCache(String endpoint, Object document);
-
-  void clearCache();
-
-  void cacheMany(String endpoint, Iterable<Object> documents);
-
-  Object? peek(String endpoint, String id);
-
-  Iterable<Object> peekMany(String endpoint, Iterable<String> ids);
-
-  Iterable<Object> peekAll(String endpoint);
 }
 
 abstract class Schema {

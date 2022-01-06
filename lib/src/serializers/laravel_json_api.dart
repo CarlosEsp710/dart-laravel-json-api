@@ -210,22 +210,28 @@ class LaravelJsonApiDocument {
     return included
         .where(
             (record) => record['type'] == type && ids!.contains(record['id']))
-        .map<LaravelJsonApiDocument>((record) => LaravelJsonApiDocument(
+        .map<LaravelJsonApiDocument>(
+          (record) => LaravelJsonApiDocument(
             record['id'],
             record['type'],
             record['attributes'],
-            record['relationships']));
+            record['relationships'],
+          ),
+        );
   }
 
   LaravelJsonApiDocument? includedDoc(String type, String relationshipName) {
     var id = idFor(relationshipName);
     var it = included
         .where((record) => record['type'] == type && record['id'] == id)
-        .map<LaravelJsonApiDocument>((record) => LaravelJsonApiDocument(
+        .map<LaravelJsonApiDocument>(
+          (record) => LaravelJsonApiDocument(
             record['id'],
             record['type'],
             record['attributes'],
-            record['relationships']));
+            record['relationships'],
+          ),
+        );
 
     return it.isNotEmpty ? it.first : null;
   }
@@ -273,12 +279,15 @@ class LaravelJsonApiManyDocument extends Iterable<LaravelJsonApiDocument> {
   Iterable<LaravelJsonApiDocument> docs;
   Iterable<dynamic> included;
   Map<String, dynamic> meta;
+  Map<String, dynamic> links;
 
   LaravelJsonApiManyDocument(
     this.docs, [
     Iterable<dynamic>? included,
     Map<String, dynamic>? meta,
+    Map<String, dynamic>? links,
   ])  : meta = meta ?? <String, dynamic>{},
+        links = links ?? <String, dynamic>{},
         included = included ?? [];
 
   @override

@@ -14,7 +14,6 @@ but it supports any REST service based on the [JSON:API](https://jsonapi.org/) s
 - Get related resources using relationships
 - Get relationships
 - Exception handling
-- Simple cache
 
 ## Installation
 
@@ -57,7 +56,8 @@ By default these are the values of the following headers:
 
 - Accept -> application/vnd.api+json
 - Content-Type -> application/vnd.api+json
-  But they can be overwritten.
+
+But they can be overwritten.
 
 ## Create models
 
@@ -160,13 +160,11 @@ Future<Article> getOneArticle(String id) async {
 
 `GET | https://www.host.com/api/v1/articles/1`
 
-Optionally we can send the `forceReload` parameter to cache this resource,
-and the `queryParam` to sort or include relationships.
+Optionally we can send `queryParam` to sort or include relationships.
 
 ```dart
 Future<Article> getOneArticle(String id) async {
     Article article = Article(await adapter.find('articles', id,
-        forceReload: true,
         queryParams: {'include': 'category,user'}) as LaravelJsonApiDocument);
 
     return article;
@@ -191,23 +189,11 @@ Future<Iterable<Article>> getAllArticles() async {
 
 ### More getting requests
 
-- `Future<Iterable<Object>> findManyById(String endpoint, Iterable<String> ids, {bool forceReload = false, Map<String, String> queryParams})`
+- `Future<Iterable<Object>> findManyById(String endpoint, Iterable<String> ids, {Map<String, String> queryParams})`
 - `Future<Iterable<Object>> getRelated(String endpoint, String id, String relationshipName)`
-- `Future<Iterable<Object>> filter(String endpoint, String filterField, Iterable<String> values, {bool forceReload = false})`
+- `Future<Iterable<Object>> filter(String endpoint, String filterField, Iterable<String> values)`
 
 ## Writing data
-
-With cached resource
-
-```dart
-Article article = Article.init('articles');
-article.title = 'Title';
-article.content = 'Content';
-article.user = User(adapter.peek('users', '1') as LaravelJsonApiDocument);
-article.category = Category(adapter.peek('users', '1') as LaravelJsonApiDocument);
-```
-
-Receiving a resource
 
 ```dart
 Article article = Article.init('articles');
@@ -240,7 +226,7 @@ Replace relationship
 Article article = Article(await adapter.find('articles', '1') as LaravelJsonApiDocument);
 Category newCategory = Category(await adapter.find('categories', '2') as LaravelJsonApiDocument);
 
-await adapter.replaceRelationship('articles', 'category', article, newCategory);
+await adapter.replaceRelationship('articles', 'category', article.id, newCategory);
 ```
 
 Delete resource

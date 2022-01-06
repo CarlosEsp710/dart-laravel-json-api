@@ -49,6 +49,9 @@ class LaravelJsonApiModel with EquatableMixin implements Schema {
   @override
   String serialize() => LaravelJsonApiSerializer().serialize(jsonApiDoc);
 
+  @override
+  List<Object?> get props => [id, type, errors];
+
   bool get isNew => jsonApiDoc.isNew;
 
   bool get hasErrors => jsonApiDoc.hasErrors;
@@ -113,9 +116,6 @@ class LaravelJsonApiModel with EquatableMixin implements Schema {
 
   static String toUtcIsoString(DateTime value) =>
       value.toUtc().toIso8601String();
-
-  @override
-  List<Object?> get props => [id, type, errors];
 }
 
 abstract class JsonApiManyModel<T extends LaravelJsonApiModel>
@@ -129,11 +129,34 @@ abstract class JsonApiManyModel<T extends LaravelJsonApiModel>
   Iterator<T> get iterator => models.iterator;
 
   bool get hasMeta => manyDoc.meta.isNotEmpty;
-  int? get currentPage => manyDoc.meta['current_page'];
-  int? get pageSize => manyDoc.meta['page_size'];
-  int? get totalPages => manyDoc.meta['total_pages'];
-  int? get totalCount => manyDoc.meta['total_count'];
+  int? get currentPage => manyDoc.meta['page']['current-page'];
+  int? get perPage => manyDoc.meta['page']['per-page'];
+  int? get from => manyDoc.meta['page']['from'];
+  int? get to => manyDoc.meta['page']['to'];
+  int? get total => manyDoc.meta['page']['total'];
+  int? get lastPage => manyDoc.meta['page']['last-page'];
+
+  bool get hasLinks => manyDoc.links.isNotEmpty;
 
   Iterable<LaravelJsonApiDocument> includedDocs(String type) =>
       manyDoc.includedDocs(type);
 }
+
+
+/**
+ * "meta": {
+    "page": {
+      "current-page": 1,
+      "per-page": 2,
+      "from": 1,
+      "to": 2,
+      "total": 3,
+      "last-page": 2
+    }
+  },
+  "links": {
+    "first": "http://127.0.0.1:8000/api/v1/articles?page%5Bnumber%5D=1&page%5Bsize%5D=2",
+    "next": "http://127.0.0.1:8000/api/v1/articles?page%5Bnumber%5D=2&page%5Bsize%5D=2",
+    "last": "http://127.0.0.1:8000/api/v1/articles?page%5Bnumber%5D=2&page%5Bsize%5D=2"
+  },
+ */

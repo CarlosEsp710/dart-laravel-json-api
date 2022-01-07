@@ -1,7 +1,7 @@
 name: laravel_json_api
 description: >-
   This package is a mini framework that allows us to consume the services of an JSON:API.
-version: 0.1.5
+version: 0.1.8
 repository: https://github.com/CarlosEsp710/dart-laravel-json-api.git
 # homepage: https://www.example.com
 

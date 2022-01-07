@@ -5,14 +5,14 @@ import '../exceptions.dart';
 import '../interfaces.dart';
 import '../serializers/laravel_json_api.dart';
 
-class LaravelJsonApiAdapter extends Adapter with Http {
+class ApiController extends Adapter with Http {
   final String apiPath;
 
-  LaravelJsonApiAdapter(
+  ApiController(
     String hostname,
     this.apiPath, {
     bool useSSL = true,
-  }) : super(LaravelJsonApiSerializer()) {
+  }) : super(Serializer()) {
     this.hostname = hostname;
     this.useSSL = useSSL;
     addHeader('Accept', 'application/vnd.api+json');
@@ -20,7 +20,7 @@ class LaravelJsonApiAdapter extends Adapter with Http {
   }
 
   @override
-  Future<LaravelJsonApiManyDocument> findAll(
+  Future<ResourceCollection> findAll(
     String endpoint, {
     Map<String, String> queryParams = const {},
   }) async {
@@ -31,7 +31,7 @@ class LaravelJsonApiAdapter extends Adapter with Http {
   }
 
   @override
-  Future<LaravelJsonApiDocument> find(
+  Future<ResourceObject> find(
     String endpoint,
     String id, {
     Map<String, String> queryParams = const {},
@@ -40,33 +40,31 @@ class LaravelJsonApiAdapter extends Adapter with Http {
   }
 
   @override
-  Future<LaravelJsonApiManyDocument> findManyById(
+  Future<ResourceCollection> findManyById(
     String endpoint,
     Iterable<String> ids, {
     Map<String, String> queryParams = const {},
   }) async {
     if (ids.isEmpty) {
-      return Future.value(
-          LaravelJsonApiManyDocument(<LaravelJsonApiDocument>[]));
+      return Future.value(ResourceCollection(<ResourceObject>[]));
     }
 
-    return LaravelJsonApiManyDocument(
+    return ResourceCollection(
         await _query(endpoint, {...queryParams, ..._idsParam(ids)}));
   }
 
   @override
-  Future<LaravelJsonApiManyDocument> filter(
+  Future<ResourceCollection> filter(
     String endpoint,
     String filterField,
     Iterable<String> values, {
     Map<String, String> queryParams = const {},
   }) async {
     if (values.isEmpty) {
-      return Future.value(
-          LaravelJsonApiManyDocument(<LaravelJsonApiDocument>[]));
+      return Future.value(ResourceCollection(<ResourceObject>[]));
     }
 
-    return LaravelJsonApiManyDocument(await _query(
+    return ResourceCollection(await _query(
         endpoint, {...queryParams, ..._filterField(filterField, values)}));
   }
 
@@ -78,7 +76,7 @@ class LaravelJsonApiAdapter extends Adapter with Http {
     return {'filter[id]': ids.join(',')};
   }
 
-  Future<LaravelJsonApiDocument> _fetch(
+  Future<ResourceObject> _fetch(
     String endpoint,
     String id,
     Map<String, String> queryParams,
@@ -86,10 +84,10 @@ class LaravelJsonApiAdapter extends Adapter with Http {
     final response =
         await httpGet("$apiPath/$endpoint/$id", queryParams: queryParams);
     String payload = checkAndDecode(response) ?? '{}';
-    return serializer.deserialize(payload) as LaravelJsonApiDocument;
+    return formatter.deserialize(payload) as ResourceObject;
   }
 
-  Future<LaravelJsonApiManyDocument> _query(
+  Future<ResourceCollection> _query(
     String endpoint,
     Map<String, String> params,
   ) async {
@@ -99,52 +97,50 @@ class LaravelJsonApiAdapter extends Adapter with Http {
   }
 
   @override
-  Future<LaravelJsonApiManyDocument> getRelated(
+  Future<ResourceCollection> getRelated(
       String endpoint, String id, String relationshipName) async {
     final response = await httpGet("$apiPath/$endpoint/$id/$relationshipName");
     String payload = checkAndDecode(response) ?? '{}';
     return _deserializeMany(payload, endpoint);
   }
 
-  LaravelJsonApiManyDocument _deserializeMany(
+  ResourceCollection _deserializeMany(
     String payload,
     String endpoint,
   ) {
-    return LaravelJsonApiManyDocument(
-        serializer.deserializeMany(payload) as LaravelJsonApiManyDocument);
+    return ResourceCollection(
+        formatter.deserializeMany(payload) as ResourceCollection);
   }
 
   @override
-  Future<LaravelJsonApiDocument> save(
+  Future<ResourceObject> save(
     String endpoint,
     Object document,
   ) async {
-    if (document is! LaravelJsonApiDocument) {
-      throw ArgumentError('Document must be a LaravelJsonApiDocument');
+    if (document is! ResourceObject) {
+      throw ArgumentError('Document must be a ResourceObject');
     }
-    LaravelJsonApiDocument? jsonApiDoc;
+    ResourceObject? resource;
     try {
-      jsonApiDoc = document;
+      resource = document;
       http.Response response;
 
-      if (jsonApiDoc.isNew) {
+      if (resource.isNew) {
         response = await httpPost("$apiPath/$endpoint",
-            body: serializer.serialize(jsonApiDoc));
+            body: formatter.serialize(resource));
       } else {
-        response = await httpPatch("$apiPath/$endpoint/${jsonApiDoc.id}",
-            body: serializer.serialize(jsonApiDoc));
+        response = await httpPatch("$apiPath/$endpoint/${resource.id}",
+            body: formatter.serialize(resource));
       }
       String payload = checkAndDecode(response) ?? '{}';
 
-      LaravelJsonApiDocument saved =
-          serializer.deserialize(payload) as LaravelJsonApiDocument;
+      ResourceObject saved = formatter.deserialize(payload) as ResourceObject;
 
       return saved;
     } on UnprocessableException catch (e) {
-      Map parsed =
-          (serializer as LaravelJsonApiSerializer).parse(e.responseBody!);
+      Map parsed = (formatter as Serializer).parse(e.responseBody!);
       if (parsed.containsKey('errors')) {
-        jsonApiDoc!.errors = parsed['errors'];
+        resource!.errors = parsed['errors'];
         throw InvalidRecordException();
       } else {
         rethrow;
@@ -157,29 +153,27 @@ class LaravelJsonApiAdapter extends Adapter with Http {
     String endpoint,
     String relationshipName,
     String id,
-    Object relatedDocument,
+    Object related,
   ) async {
-    if (relatedDocument is! LaravelJsonApiDocument) {
-      throw ArgumentError('Document must be a LaravelJsonApiDocument');
+    if (related is! ResourceObject) {
+      throw ArgumentError('Document must be a ResourceObject');
     }
-    LaravelJsonApiDocument? jsonApiDocRelated;
+    ResourceObject? resource;
 
     try {
-      jsonApiDocRelated = relatedDocument;
+      resource = related;
       http.Response response;
 
       response = await httpPatch("$apiPath/$endpoint/$id/$relationshipName",
-          body: serializer.serialize(jsonApiDocRelated));
+          body: formatter.serialize(resource));
 
       String payload = checkAndDecode(response) ?? '{}';
 
-      LaravelJsonApiDocument saved =
-          serializer.deserialize(payload) as LaravelJsonApiDocument;
+      ResourceObject saved = formatter.deserialize(payload) as ResourceObject;
 
       return saved;
     } on UnprocessableException catch (e) {
-      Map parsed =
-          (serializer as LaravelJsonApiSerializer).parse(e.responseBody!);
+      Map parsed = (formatter as Serializer).parse(e.responseBody!);
 
       if (parsed.containsKey('errors')) {
         throw InvalidRecordException();
@@ -191,10 +185,10 @@ class LaravelJsonApiAdapter extends Adapter with Http {
 
   @override
   Future delete(String endpoint, Object document) async {
-    if (document is! LaravelJsonApiDocument) {
-      throw ArgumentError('Document must be a LaravelJsonApiDocument');
+    if (document is! ResourceObject) {
+      throw ArgumentError('Document must be a ResourceObject');
     }
-    LaravelJsonApiDocument? jsonApiDoc;
+    ResourceObject? jsonApiDoc;
     try {
       jsonApiDoc = document;
       final response = await httpDelete("$apiPath/$endpoint/${jsonApiDoc.id}");
@@ -202,42 +196,7 @@ class LaravelJsonApiAdapter extends Adapter with Http {
 
       return response;
     } on UnprocessableException catch (e) {
-      Map parsed =
-          (serializer as LaravelJsonApiSerializer).parse(e.responseBody!);
-      if (parsed.containsKey('errors')) {
-        jsonApiDoc!.errors = parsed['errors'];
-        throw InvalidRecordException();
-      } else {
-        rethrow;
-      }
-    }
-  }
-
-  @override
-  Future<LaravelJsonApiDocument> memberPutAction(
-    String endpoint,
-    Object document,
-    String actionPath,
-  ) async {
-    if (document is! LaravelJsonApiDocument) {
-      throw ArgumentError('Document must be a LaravelJsonApiDocument');
-    }
-    LaravelJsonApiDocument? jsonApiDoc;
-    try {
-      jsonApiDoc = document;
-      var response = await httpPut(
-        "$apiPath/$endpoint/${jsonApiDoc.id}/$actionPath",
-        body: serializer.serialize(jsonApiDoc),
-      );
-      String payload = checkAndDecode(response) ?? '{}';
-
-      LaravelJsonApiDocument updated =
-          serializer.deserialize(payload) as LaravelJsonApiDocument;
-
-      return updated;
-    } on UnprocessableException catch (e) {
-      Map parsed =
-          (serializer as LaravelJsonApiSerializer).parse(e.responseBody!);
+      Map parsed = (formatter as Serializer).parse(e.responseBody!);
       if (parsed.containsKey('errors')) {
         jsonApiDoc!.errors = parsed['errors'];
         throw InvalidRecordException();

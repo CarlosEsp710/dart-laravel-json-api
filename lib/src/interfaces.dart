@@ -1,13 +1,13 @@
-abstract class Serializer {
+abstract class Formatter {
   String serialize(Object document);
   Object deserialize(String payload);
   Iterable<Object> deserializeMany(String payload);
 }
 
 abstract class Adapter {
-  Serializer serializer;
+  Formatter formatter;
 
-  Adapter(this.serializer);
+  Adapter(this.formatter);
 
   Future<Object> find(String endpoint, String id,
       {Map<String, String> queryParams});
@@ -26,16 +26,13 @@ abstract class Adapter {
 
   Future<Object> save(String endpoint, Object document);
 
-  Future<Object> replaceRelationship(String endpoint, String relationshipName,
-      String id, Object relatedDocument);
+  Future<Object> replaceRelationship(
+      String endpoint, String relationshipName, String id, Object related);
 
   Future delete(String endpoint, Object document);
-
-  Future<Object> memberPutAction(
-      String endpoint, Object document, String actionPath);
 }
 
-abstract class Schema {
+abstract class Model {
   String? get id;
   String? get type;
   String serialize();

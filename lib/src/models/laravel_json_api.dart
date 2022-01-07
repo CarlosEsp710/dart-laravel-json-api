@@ -4,111 +4,109 @@ import '../exceptions.dart';
 import '../interfaces.dart';
 import '../serializers/laravel_json_api.dart';
 
-class LaravelJsonApiModel with EquatableMixin implements Schema {
-  LaravelJsonApiDocument jsonApiDoc;
+class Schema with EquatableMixin implements Model {
+  ResourceObject resourceObject;
 
-  LaravelJsonApiModel(this.jsonApiDoc);
+  Schema(this.resourceObject);
 
-  LaravelJsonApiModel.create(
+  Schema.create(
     String type, {
     Map<String, dynamic>? attributes,
     Map<String, dynamic>? relationships,
-  }) : jsonApiDoc = LaravelJsonApiDocument.create(
+  }) : resourceObject = ResourceObject.create(
           type,
           attributes ?? <String, dynamic>{},
           relationships ?? <String, dynamic>{},
         );
 
-  LaravelJsonApiModel.init(String type) : this.create(type);
+  Schema.init(String type) : this.create(type);
 
-  LaravelJsonApiModel.from(LaravelJsonApiModel other)
-      : this(LaravelJsonApiDocument.from(other.jsonApiDoc));
+  Schema.from(Schema other) : this(ResourceObject.from(other.resourceObject));
 
-  LaravelJsonApiModel.shallowCopy(LaravelJsonApiModel other)
-      : this(other.jsonApiDoc);
+  Schema.shallowCopy(Schema other) : this(other.resourceObject);
 
-  String get endpoint => jsonApiDoc.endpoint;
-  Map<String, dynamic> get attributes => jsonApiDoc.attributes;
-  Map<String, dynamic> get relationships => jsonApiDoc.relationships;
-  Iterable<dynamic> get included => jsonApiDoc.included;
-  List<dynamic> get errors => jsonApiDoc.errors;
+  String get endpoint => resourceObject.endpoint;
+  Map<String, dynamic> get attributes => resourceObject.attributes;
+  Map<String, dynamic> get relationships => resourceObject.relationships;
+  Iterable<dynamic> get included => resourceObject.included;
+  List<dynamic> get errors => resourceObject.errors;
 
   @override
-  String? get id => jsonApiDoc.id;
+  String? get id => resourceObject.id;
 
   @override
-  String? get type => jsonApiDoc.type;
+  String? get type => resourceObject.type;
 
   @override
-  T getAttribute<T>(String key) => jsonApiDoc.getAttribute<T>(key);
+  T getAttribute<T>(String key) => resourceObject.getAttribute<T>(key);
 
   @override
   void setAttribute<T>(String key, T value) =>
-      jsonApiDoc.setAttribute<T>(key, value);
+      resourceObject.setAttribute<T>(key, value);
 
   @override
-  String serialize() => LaravelJsonApiSerializer().serialize(jsonApiDoc);
+  String serialize() => Serializer().serialize(resourceObject);
 
   @override
   List<Object?> get props => [id, type, errors];
 
-  bool get isNew => jsonApiDoc.isNew;
+  bool get isNew => resourceObject.isNew;
 
-  bool get hasErrors => jsonApiDoc.hasErrors;
+  bool get hasErrors => resourceObject.hasErrors;
 
-  String? idFor(String relationshipName) => jsonApiDoc.idFor(relationshipName);
+  String? idFor(String relationshipName) =>
+      resourceObject.idFor(relationshipName);
 
   String? typeFor(String relationshipName) =>
-      jsonApiDoc.typeFor(relationshipName);
+      resourceObject.typeFor(relationshipName);
 
   Map<String, dynamic> dataForHasOne(String relationshipName) =>
-      jsonApiDoc.dataForHasOne(relationshipName);
+      resourceObject.dataForHasOne(relationshipName);
 
   Iterable<dynamic>? dataForHasMany(String relationshipName) =>
-      jsonApiDoc.dataForHasMany(relationshipName);
+      resourceObject.dataForHasMany(relationshipName);
 
   Iterable<String> idsFor(String relationshipName) =>
-      jsonApiDoc.idsFor(relationshipName);
+      resourceObject.idsFor(relationshipName);
 
-  Iterable<LaravelJsonApiDocument> includedDocs(String type,
-          [Iterable<String>? ids]) =>
-      jsonApiDoc.includedDocs(type, ids);
+  ResourceObject? includedDoc(String type, String relationshipName) =>
+      resourceObject.includedResource(type, relationshipName);
 
-  LaravelJsonApiDocument? includedDoc(String type, String relationshipName) =>
-      jsonApiDoc.includedDoc(type, relationshipName);
+  Iterable<ResourceObject> includedDocs(String type, [Iterable<String>? ids]) =>
+      resourceObject.includedResorces(type, ids);
 
   bool attributeHasErrors(String attributeName) =>
-      jsonApiDoc.attributeHasErrors(attributeName);
+      resourceObject.attributeHasErrors(attributeName);
 
   Iterable<String> errorsFor(String attributeName) =>
-      jsonApiDoc.errorsFor(attributeName);
+      resourceObject.errorsFor(attributeName);
 
   void clearErrorsFor(String attributeName) {
-    jsonApiDoc.clearErrorsFor(attributeName);
+    resourceObject.clearErrorsFor(attributeName);
   }
 
   void clearErrors() {
-    jsonApiDoc.clearErrors();
+    resourceObject.clearErrors();
   }
 
   void addErrorFor(String attributeName, String errorMessage) {
-    jsonApiDoc.addErrorFor(attributeName, errorMessage);
+    resourceObject.addErrorFor(attributeName, errorMessage);
   }
 
-  void setHasOne(String relationshipName, LaravelJsonApiModel model) {
-    if (model.type == null) {
+  void setHasOne(String relationshipName, Schema schema) {
+    if (schema.type == null) {
       throw DataStructureException(
-          'Cannot set model with null type on has-one relationship');
+          'Cannot set schema with null type on has-one relationship');
     }
-    if (model.id == null) {
+    if (schema.id == null) {
       throw DataStructureException(
-          'Cannot set model with null id on has-one relationship');
+          'Cannot set schema with null id on has-one relationship');
     }
-    jsonApiDoc.setHasOne(relationshipName, model.id!, model.type!);
+    resourceObject.setHasOne(relationshipName, schema.id!, schema.type!);
   }
 
   void clearHasOne(String relationshipName) {
-    jsonApiDoc.clearHasOne(relationshipName);
+    resourceObject.clearHasOne(relationshipName);
   }
 
   static DateTime? toDateTime(String value) =>
@@ -118,15 +116,14 @@ class LaravelJsonApiModel with EquatableMixin implements Schema {
       value.toUtc().toIso8601String();
 }
 
-abstract class JsonApiManyModel<T extends LaravelJsonApiModel>
-    extends Iterable<T> {
-  LaravelJsonApiManyDocument manyDoc;
-  late Iterable<T> models;
+abstract class Schemas<T extends Schema> extends Iterable<T> {
+  ResourceCollection manyDoc;
+  late Iterable<T> schemas;
 
-  JsonApiManyModel(this.manyDoc);
+  Schemas(this.manyDoc);
 
   @override
-  Iterator<T> get iterator => models.iterator;
+  Iterator<T> get iterator => schemas.iterator;
 
   bool get hasMeta => manyDoc.meta.isNotEmpty;
   int? get currentPage => manyDoc.meta['page']['current-page'];
@@ -138,25 +135,6 @@ abstract class JsonApiManyModel<T extends LaravelJsonApiModel>
 
   bool get hasLinks => manyDoc.links.isNotEmpty;
 
-  Iterable<LaravelJsonApiDocument> includedDocs(String type) =>
+  Iterable<ResourceObject> includedDocs(String type) =>
       manyDoc.includedDocs(type);
 }
-
-
-/**
- * "meta": {
-    "page": {
-      "current-page": 1,
-      "per-page": 2,
-      "from": 1,
-      "to": 2,
-      "total": 3,
-      "last-page": 2
-    }
-  },
-  "links": {
-    "first": "http://127.0.0.1:8000/api/v1/articles?page%5Bnumber%5D=1&page%5Bsize%5D=2",
-    "next": "http://127.0.0.1:8000/api/v1/articles?page%5Bnumber%5D=2&page%5Bsize%5D=2",
-    "last": "http://127.0.0.1:8000/api/v1/articles?page%5Bnumber%5D=2&page%5Bsize%5D=2"
-  },
- */

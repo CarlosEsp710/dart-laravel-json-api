@@ -3,48 +3,54 @@ import 'dart:convert';
 import '../exceptions.dart';
 import '../interfaces.dart';
 
-class LaravelJsonApiSerializer implements Serializer {
+class Serializer implements Formatter {
   @override
-  LaravelJsonApiDocument deserialize(String payload) {
+  ResourceObject deserialize(String payload) {
     try {
       Map<String, dynamic> parsed = parse(payload);
       var data = parsed['data'] ?? {};
-      return LaravelJsonApiDocument(data['id'], data['type'],
-          data['attributes'], data['relationships'], parsed['included']);
+      return ResourceObject(data['id'], data['type'], data['attributes'],
+          data['relationships'], parsed['included']);
     } on FormatException {
       throw DeserializationException();
     }
   }
 
   @override
-  LaravelJsonApiManyDocument deserializeMany(String payload) {
+  ResourceCollection deserializeMany(String payload) {
     Map<String, dynamic> parsed = parse(payload);
-    var docs = (parsed['data'] as Iterable).map((item) =>
-        LaravelJsonApiDocument(item['id'], item['type'], item['attributes'],
-            item['relationships'], parsed['included']));
-    return LaravelJsonApiManyDocument(docs, parsed['included'], parsed['meta']);
+    var collection = (parsed['data'] as Iterable).map(
+      (item) => ResourceObject(
+        item['id'],
+        item['type'],
+        item['attributes'],
+        item['relationships'],
+        parsed['included'],
+      ),
+    );
+    return ResourceCollection(collection, parsed['included'], parsed['meta']);
   }
 
   @override
   String serialize(Object document, {bool withIncluded = false}) {
     try {
-      LaravelJsonApiDocument jsonApiDoc = (document as LaravelJsonApiDocument);
+      ResourceObject resource = (document as ResourceObject);
       Map<String, dynamic> jsonMap = {
         'data': {
-          'type': jsonApiDoc.type,
-          'attributes': jsonApiDoc.attributes,
-          'relationships': jsonApiDoc.relationships,
+          'type': resource.type,
+          'attributes': resource.attributes,
+          'relationships': resource.relationships,
         },
       };
       if (withIncluded) {
-        jsonMap['included'] = jsonApiDoc.included;
+        jsonMap['included'] = resource.included;
       }
-      if (jsonApiDoc.id != null) {
-        jsonMap['data']['id'] = jsonApiDoc.id;
+      if (resource.id != null) {
+        jsonMap['data']['id'] = resource.id;
       }
       return json.encode(jsonMap);
     } on TypeError {
-      throw ArgumentError('Document must be a LaravelJsonApiDocument');
+      throw ArgumentError('Document must be a ResourceObject');
     } on JsonUnsupportedObjectError {
       throw SerializationException();
     }
@@ -53,7 +59,7 @@ class LaravelJsonApiSerializer implements Serializer {
   dynamic parse(String raw) => json.decode(raw);
 }
 
-class LaravelJsonApiDocument {
+class ResourceObject {
   String? id;
   String? type;
   Map<String, dynamic> attributes;
@@ -61,14 +67,14 @@ class LaravelJsonApiDocument {
   Iterable<dynamic> included;
   List<dynamic> errors;
 
-  LaravelJsonApiDocument(
+  ResourceObject(
       this.id, this.type, this.attributes, Map<String, dynamic>? relationships,
       [Iterable<dynamic>? included])
       : errors = [],
         relationships = relationships ?? {},
         included = included ?? [];
 
-  LaravelJsonApiDocument.create(
+  ResourceObject.create(
     this.type,
     this.attributes, [
     Map<String, dynamic>? relationships,
@@ -76,7 +82,7 @@ class LaravelJsonApiDocument {
         included = [],
         relationships = relationships ?? {};
 
-  LaravelJsonApiDocument.from(LaravelJsonApiDocument other)
+  ResourceObject.from(ResourceObject other)
       : this(
           other.id,
           other.type,
@@ -204,28 +210,12 @@ class LaravelJsonApiDocument {
     }
   }
 
-  Iterable<LaravelJsonApiDocument> includedDocs(String type,
-      [Iterable<String>? ids]) {
-    ids ??= idsFor(type);
-    return included
-        .where(
-            (record) => record['type'] == type && ids!.contains(record['id']))
-        .map<LaravelJsonApiDocument>(
-          (record) => LaravelJsonApiDocument(
-            record['id'],
-            record['type'],
-            record['attributes'],
-            record['relationships'],
-          ),
-        );
-  }
-
-  LaravelJsonApiDocument? includedDoc(String type, String relationshipName) {
+  ResourceObject? includedResource(String type, String relationshipName) {
     var id = idFor(relationshipName);
     var it = included
         .where((record) => record['type'] == type && record['id'] == id)
-        .map<LaravelJsonApiDocument>(
-          (record) => LaravelJsonApiDocument(
+        .map<ResourceObject>(
+          (record) => ResourceObject(
             record['id'],
             record['type'],
             record['attributes'],
@@ -234,6 +224,22 @@ class LaravelJsonApiDocument {
         );
 
     return it.isNotEmpty ? it.first : null;
+  }
+
+  Iterable<ResourceObject> includedResorces(String type,
+      [Iterable<String>? ids]) {
+    ids ??= idsFor(type);
+    return included
+        .where(
+            (record) => record['type'] == type && ids!.contains(record['id']))
+        .map<ResourceObject>(
+          (record) => ResourceObject(
+            record['id'],
+            record['type'],
+            record['attributes'],
+            record['relationships'],
+          ),
+        );
   }
 
   bool get hasErrors => errors.isNotEmpty;
@@ -273,15 +279,15 @@ class LaravelJsonApiDocument {
       (error['detail'] as String).isNotEmpty;
 }
 
-typedef FilterFunction = bool Function(LaravelJsonApiDocument);
+typedef FilterFunction = bool Function(ResourceObject);
 
-class LaravelJsonApiManyDocument extends Iterable<LaravelJsonApiDocument> {
-  Iterable<LaravelJsonApiDocument> docs;
+class ResourceCollection extends Iterable<ResourceObject> {
+  Iterable<ResourceObject> docs;
   Iterable<dynamic> included;
   Map<String, dynamic> meta;
   Map<String, dynamic> links;
 
-  LaravelJsonApiManyDocument(
+  ResourceCollection(
     this.docs, [
     Iterable<dynamic>? included,
     Map<String, dynamic>? meta,
@@ -291,9 +297,9 @@ class LaravelJsonApiManyDocument extends Iterable<LaravelJsonApiDocument> {
         included = included ?? [];
 
   @override
-  Iterator<LaravelJsonApiDocument> get iterator => docs.iterator;
+  Iterator<ResourceObject> get iterator => docs.iterator;
 
-  void append(Iterable<LaravelJsonApiDocument> moreDocs) {
+  void append(Iterable<ResourceObject> moreDocs) {
     docs = docs.followedBy(moreDocs);
   }
 
@@ -311,8 +317,8 @@ class LaravelJsonApiManyDocument extends Iterable<LaravelJsonApiDocument> {
       .expand((ids) => ids)
       .toSet();
 
-  Iterable<LaravelJsonApiDocument> includedDocs(String type) => included
+  Iterable<ResourceObject> includedDocs(String type) => included
       .where((record) => record['type'] == type)
-      .map((record) => LaravelJsonApiDocument(record['id'], record['type'],
+      .map((record) => ResourceObject(record['id'], record['type'],
           record['attributes'], record['relationships']));
 }

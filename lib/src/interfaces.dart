@@ -22,7 +22,8 @@ abstract class Adapter {
       String endpoint, String id, String relationshipName);
 
   Future<Iterable<Object>> filter(
-      String endpoint, String filterField, Iterable<String> values);
+      String endpoint, String filterField, Iterable<String> values,
+      {Map<String, String> queryParams});
 
   Future<Object> save(String endpoint, Object document);
 
